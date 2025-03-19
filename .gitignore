@@ -1,0 +1,20 @@
+# Ignore environment variables
+.env
+
+# Ignore node_modules folder
+node_modules/
+
+# Ignore logs
+logs/
+*.log
+
+# Ignore dependencies lock files
+package-lock.json
+yarn.lock
+
+# Ignore build files
+dist/
+build/
+
+# Ignore local database files
+*.sqlite
