@@ -15,13 +15,16 @@ if (!uri) {
     process.exit(1);
 }
 
-// ✅ إعداد MongoDB الرسمي المتوافق مع Atlas
+// ✅ إعداد MongoDB الرسمي المتوافق مع Atlas + TLS fix لـ Render
 const client = new MongoClient(uri, {
     serverApi: {
         version: '1',
         strict: true,
         deprecationErrors: true,
     },
+    autoSelectFamily: false,  // يحل مشاكل IPv6 على Render
+    tls: true,                // تأكيد TLS صريح لـ Atlas
+    // maxPoolSize: 10,       // اختياري: تحسين الأداء
 });
 
 let db;
