@@ -1,31 +1,21 @@
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
-const bodyParser = require('body-parser');
 const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(bodyParser.json());
+app.use(express.json());
 app.use(cors());
 
-// 🔐 MongoDB URI من Render Environment
+// 🔐 MongoDB URI من Render
 const uri = process.env.MONGODB_URI;
 if (!uri) {
-    console.error('❌ MongoDB URI is not defined. Check Render Environment Variables.');
+    console.error('❌ MongoDB URI is not defined');
     process.exit(1);
 }
 
-// ✅ إعداد MongoDB الرسمي المتوافق مع Atlas + TLS fix لـ Render
-const client = new MongoClient(uri, {
-    serverApi: {
-        version: '1',
-        strict: true,
-        deprecationErrors: true,
-    },
-    autoSelectFamily: false,  // يحل مشاكل IPv6 على Render
-    tls: true,                // تأكيد TLS صريح لـ Atlas
-    // maxPoolSize: 10,       // اختياري: تحسين الأداء
-});
+// ✅ الإعداد الصحيح لـ MongoDB Atlas (بدون SSL يدوي)
+const client = new MongoClient(uri);
 
 let db;
 
@@ -33,108 +23,76 @@ let db;
 async function connectToMongoDB() {
     try {
         await client.connect();
-        db = client.db('tankstellennew'); // اسم القاعدة على Atlas
+        db = client.db('tankstellennew'); // اسم DB على Atlas
         console.log('✅ Connected to MongoDB Atlas');
         startServer();
     } catch (err) {
-        console.error('❌ Error connecting to MongoDB:', err);
+        console.error('❌ MongoDB connection error:', err);
         process.exit(1);
     }
 }
 
 // 🛣️ Routes
 function setupRoutes() {
-    // Root
+
     app.get('/', (req, res) => {
-        res.send('Backend is running...');
+        res.send('Backend is running ✅');
     });
 
-    // GET all streets
     app.get('/streets', async (req, res) => {
         try {
-            const streets = await db.collection('streets').find().toArray();
-            res.json(streets);
+            const data = await db.collection('streets').find().toArray();
+            res.json(data);
         } catch (err) {
-            res.status(500).json({
-                message: 'Failed to fetch streets',
-                error: err.message,
-            });
+            res.status(500).json({ error: err.message });
         }
     });
 
-    // POST new street
     app.post('/streets', async (req, res) => {
-        const { adresse, geometry } = req.body;
         try {
-            await db.collection('streets').insertOne({ adresse, geometry });
-            res.status(201).json({ message: 'Street added successfully' });
+            await db.collection('streets').insertOne(req.body);
+            res.status(201).json({ message: 'Street added' });
         } catch (err) {
-            res.status(500).json({
-                message: 'Failed to create street',
-                error: err.message,
-            });
+            res.status(500).json({ error: err.message });
         }
     });
 
-    // PUT update street
     app.put('/streets/:id', async (req, res) => {
-        const { adresse, geometry } = req.body;
         const { id } = req.params;
-
         if (!ObjectId.isValid(id)) {
-            return res.status(400).json({ message: 'Invalid ID format' });
+            return res.status(400).json({ message: 'Invalid ID' });
         }
 
         try {
-            const result = await db.collection('streets').updateOne(
+            await db.collection('streets').updateOne(
                 { _id: new ObjectId(id) },
-                { $set: { adresse, geometry } }
+                { $set: req.body }
             );
-
-            if (result.matchedCount === 0) {
-                return res.status(404).json({ message: 'Street not found' });
-            }
-
-            res.json({ message: 'Street updated successfully' });
+            res.json({ message: 'Street updated' });
         } catch (err) {
-            res.status(500).json({
-                message: 'Failed to update street',
-                error: err.message,
-            });
+            res.status(500).json({ error: err.message });
         }
     });
 
-    // DELETE street
     app.delete('/streets/:id', async (req, res) => {
         const { id } = req.params;
-
         if (!ObjectId.isValid(id)) {
-            return res.status(400).json({ message: 'Invalid ID format' });
+            return res.status(400).json({ message: 'Invalid ID' });
         }
 
         try {
-            const result = await db.collection('streets').deleteOne({
-                _id: new ObjectId(id),
-            });
-
-            if (result.deletedCount === 0) {
-                return res.status(404).json({ message: 'Street not found' });
-            }
-
-            res.json({ message: 'Street deleted successfully' });
+            await db.collection('streets').deleteOne({ _id: new ObjectId(id) });
+            res.json({ message: 'Street deleted' });
         } catch (err) {
-            res.status(500).json({
-                message: 'Failed to delete street',
-                error: err.message,
-            });
+            res.status(500).json({ error: err.message });
         }
     });
 }
 
-// 🚀 تشغيل السيرفر (Render يمرر PORT تلقائي)
+// 🚀 Render PORT
 function startServer() {
     setupRoutes();
-    const PORT = process.env.PORT || 5001;
+    const PORT = process.env.PORT || 10000;
     app.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
     });
