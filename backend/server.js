@@ -7,23 +7,19 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// 🔐 MongoDB URI من Render
 const uri = process.env.MONGODB_URI;
 if (!uri) {
     console.error('❌ MongoDB URI is not defined');
     process.exit(1);
 }
 
-// ✅ الإعداد الصحيح لـ MongoDB Atlas (بدون SSL يدوي)
 const client = new MongoClient(uri);
-
 let db;
 
-// 🔗 الاتصال بقاعدة البيانات
 async function connectToMongoDB() {
     try {
         await client.connect();
-        db = client.db('tankstellennew'); // اسم DB على Atlas
+        db = client.db('tankstellennew');
         console.log('✅ Connected to MongoDB Atlas');
         startServer();
     } catch (err) {
@@ -32,31 +28,33 @@ async function connectToMongoDB() {
     }
 }
 
-// 🛣️ Routes
 function setupRoutes() {
 
     app.get('/', (req, res) => {
         res.send('Backend is running ✅');
     });
 
+    // ✅ GET
     app.get('/streets', async (req, res) => {
         try {
-            const data = await db.collection('streets').find().toArray();
+            const data = await db.collection('allstreets').find().toArray();
             res.json(data);
         } catch (err) {
             res.status(500).json({ error: err.message });
         }
     });
 
+    // ✅ POST
     app.post('/streets', async (req, res) => {
         try {
-            await db.collection('streets').insertOne(req.body);
+            await db.collection('allstreets').insertOne(req.body);
             res.status(201).json({ message: 'Street added' });
         } catch (err) {
             res.status(500).json({ error: err.message });
         }
     });
 
+    // ✅ PUT
     app.put('/streets/:id', async (req, res) => {
         const { id } = req.params;
         if (!ObjectId.isValid(id)) {
@@ -64,7 +62,7 @@ function setupRoutes() {
         }
 
         try {
-            await db.collection('streets').updateOne(
+            await db.collection('allstreets').updateOne(
                 { _id: new ObjectId(id) },
                 { $set: req.body }
             );
@@ -74,6 +72,7 @@ function setupRoutes() {
         }
     });
 
+    // ✅ DELETE
     app.delete('/streets/:id', async (req, res) => {
         const { id } = req.params;
         if (!ObjectId.isValid(id)) {
@@ -81,7 +80,7 @@ function setupRoutes() {
         }
 
         try {
-            await db.collection('streets').deleteOne({ _id: new ObjectId(id) });
+            await db.collection('allstreets').deleteOne({ _id: new ObjectId(id) });
             res.json({ message: 'Street deleted' });
         } catch (err) {
             res.status(500).json({ error: err.message });
@@ -89,7 +88,6 @@ function setupRoutes() {
     });
 }
 
-// 🚀 Render PORT
 function startServer() {
     setupRoutes();
     const PORT = process.env.PORT || 10000;
@@ -98,5 +96,4 @@ function startServer() {
     });
 }
 
-// ▶️ Start
 connectToMongoDB();
